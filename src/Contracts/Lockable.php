@@ -18,4 +18,25 @@ interface Lockable
      * @return mixed
      */
     public function next($slot);
+
+    /**
+     * Locks the current Job
+     *
+     * @return mixed
+     */
+    public function lock();
+
+    /**
+     * Unlocks the current Job
+     *
+     * @return void
+     */
+    public function release();
+
+    /**
+     * Clears the Job
+     *
+     * @return void
+     */
+    public function clear();
 }

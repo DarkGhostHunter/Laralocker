@@ -2,13 +2,17 @@
 
 namespace DarkGhostHunter\Laralocker\Tests;
 
-use PHPUnit\Framework\TestCase;
+use DarkGhostHunter\Laralocker\Tests\testing\QueueableJob;
+use Orchestra\Testbench\TestCase;
 
 class ExampleTest extends TestCase
 {
-    /** @test */
-    public function true_is_true()
+    use RegistersPackage;
+
+    public function testGenerates()
     {
-        $this->assertTrue(true);
+        dispatch(new QueueableJob());
+
+        $this->assertEquals(11, QueueableJob::$current_slot);
     }
 }

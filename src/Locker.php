@@ -2,7 +2,6 @@
 
 namespace DarkGhostHunter\Laralocker;
 
-use DarkGhostHunter\Laralocker\Contracts\Lockable;
 use Illuminate\Contracts\Cache\Repository;
 
 class Locker
@@ -15,7 +14,7 @@ class Locker
     protected $repository;
 
     /**
-     * Queued Slottable Job instance
+     * Queued Lockable Job instance
      *
      * @var \DarkGhostHunter\Laralocker\Contracts\Lockable
      */
@@ -38,48 +37,23 @@ class Locker
     /**
      * Creates a new Concurrent instance
      *
+     * @param $instance
      * @param \Illuminate\Contracts\Cache\Repository $repository
      * @param string $prefix
      * @param int $ttl
      */
-    public function __construct(Repository $repository, string $prefix, int $ttl)
+    public function __construct($instance, Repository $repository, string $prefix, int $ttl)
     {
+        $this->instance = $instance;
         $this->repository = $repository;
         $this->prefix = $prefix;
         $this->ttl = $ttl;
     }
 
     /**
-     * Set the Repository to use with the Slot Checker
-     *
-     * @param \Illuminate\Contracts\Cache\Repository $repository
-     * @return \DarkGhostHunter\Laralocker\Locker
-     */
-    public function setRepository(Repository $repository)
-    {
-        $this->repository = $repository;
-
-        return $this;
-    }
-
-    /**
-     * Set the job Instance
-     *
-     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
-     * @return \DarkGhostHunter\Laralocker\Locker
-     */
-    public function setInstance(Lockable $instance)
-    {
-        $this->instance = $instance;
-
-        return $this;
-    }
-
-    /**
      * Handles the release of the slot
      *
      * @return void
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function handleSlotRelease()
     {
@@ -91,16 +65,15 @@ class Locker
      * Updates the initial Slot so next Jobs can start reserving from there
      *
      * @return void
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function updateInitialSlot()
     {
         // If the slot was reserved before the time were we updated the last slot used, then we will
         // update it. This will allow next Jobs to use get the next slot from the last used instead
         // of the very beginning, and block the next jobs from overriding it with a previous slot.
-        if ($this->lastSlotTime() > $this->reservedSlotTime()) {
-            $this->repository->forever($this->keyPrefix() . ':microtime', microtime(true));
-            $this->repository->forever($this->keyPrefix() . ':last_slot', $this->instance->slot);
+        if ($this->lastSlotTime() < $this->reservedSlotTime()) {
+            $this->repository->forever($this->prefix . ':microtime', microtime(true));
+            $this->repository->forever($this->prefix . ':last_slot', $this->instance->slot);
         }
     }
 
@@ -108,32 +81,23 @@ class Locker
      * Return when was saved the last slot
      *
      * @return int
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function lastSlotTime()
     {
-        return $this->repository->get($this->keyPrefix() . ':microtime');
-    }
-
-    /**
-     * Returns the concurrency prefix to handle the jobs
-     *
-     * @return string
-     */
-    protected function keyPrefix()
-    {
-        return ($this->instance->prefix ?? $this->prefix) . '|' . ($this->instance->queue ?? 'default');
+        return $this->repository->get($this->prefix . ':microtime');
     }
 
     /**
      * Return the time of the reserved slot
      *
      * @return float
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function reservedSlotTime()
     {
-        return $this->repository->get($this->key($this->instance->slot));
+        // If we miss the cache, we will assume it expired while the Job was still processing.
+        // In that case, returning zero will allow to NOT update the last saved slot because
+        // we don't have any guarantee if this Job ended before the last one to update it.
+        return $this->repository->get($this->key($this->instance->slot), 0);
     }
 
     /**
@@ -144,7 +108,7 @@ class Locker
      */
     protected function key($slot)
     {
-        return $this->keyPrefix() . '|' . $slot;
+        return $this->prefix . '|' . $slot;
     }
 
     /**
@@ -163,7 +127,6 @@ class Locker
      * Returns the next available slot to use by the Job
      *
      * @return mixed
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function reserveNextAvailableSlot()
     {
@@ -193,7 +156,6 @@ class Locker
      *
      * @param $slot
      * @return bool
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function isReserved($slot)
     {
@@ -211,19 +173,5 @@ class Locker
         $this->repository->put($this->key($slot), microtime(true), $this->reservationTtl());
 
         return $slot;
-    }
-
-    /**
-     * Return the Job maximum time to live before timing out
-     *
-     * @return int
-     */
-    protected function reservationTtl()
-    {
-        return $this->instance->slotTtl
-            ?? $this->instance->timeout
-            ?? method_exists($this->instance, 'retryUntil')
-                ? $this->instance->retryUntil()
-                : $this->ttl;
     }
 }
