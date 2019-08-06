@@ -1,0 +1,57 @@
+{
+    "name": "darkghosthunter/laralocker",
+    "description": "Avoid race condition in your Queue Jobs, Listeners and Notifications",
+    "keywords": [
+        "darkghosthunter",
+        "laralocker"
+    ],
+    "homepage": "https://github.com/darkghosthunter/laralocker",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "DarkGhostHunter",
+            "email": "darkghosthunter@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^7.1",
+        "illuminate/support": "5.8.*",
+        "illuminate/events": "5.8.*",
+        "illuminate/cache": "5.8.*",
+        "illuminate/bus": "5.8.*"
+    },
+    "require-dev": {
+        "orchestra/testbench": "3.8.*",
+        "phpunit/phpunit": "^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "DarkGhostHunter\\Laralocker\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DarkGhostHunter\\Laralocker\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
+
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "DarkGhostHunter\\Laralocker\\LaralockerServiceProvider"
+            ],
+            "aliases": {
+                "Laralocker": "DarkGhostHunter\\Laralocker\\LaralockerFacade"
+            }
+        }
+    }
+}
