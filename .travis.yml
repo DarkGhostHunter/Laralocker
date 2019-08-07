@@ -17,7 +17,7 @@ before_script:
   - ./cc-test-reporter before-build
 
 script:
-    - ./vendor/bin/phpunit -c ./ --coverage-clover build/logs/clover.xml
+  - vendor/bin/phpunit --coverage-text --coverage-clover=coverage.clover
 
 after_script:
-    - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
+  - php vendor/bin/ocular code-coverage:upload --format=php-clover coverage.clover

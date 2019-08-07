@@ -208,7 +208,7 @@ class LockerManagerTest extends TestCase
         $this->assertEquals([
             '10', '20', '30', '40', '50', '60', '70'
         ], LockableConcurrentJob::$slots);
-        LockableConcurrentJob::$slots = 0;
+        LockableConcurrentJob::$slots = [];
 
         $this->assertEquals(10, $job_0->getSlot());
         $this->assertEquals(20, $job_1->getSlot());
@@ -238,7 +238,7 @@ class LockerManagerTest extends TestCase
         $this->assertEquals([
             '10', '10', '20', '30',
         ], LockableConcurrentJob::$slots);
-        LockableConcurrentJob::$slots = 0;
+        LockableConcurrentJob::$slots = [];
 
         $this->assertEquals(10, $job_1->getSlot());
         $this->assertEquals(20, $job_2->getSlot());
@@ -264,7 +264,7 @@ class LockerManagerTest extends TestCase
         $this->assertEquals([
             '10', '20', '30', '40', '50',
         ], LockableConcurrentJob::$slots);
-        LockableConcurrentJob::$slots = 0;
+        LockableConcurrentJob::$slots = [];
 
         $this->assertEquals(10, $job_0->getSlot());
         $this->assertEquals(20, $job_1->getSlot()); // Failed 3 times, reserved 3 slots ahead
@@ -407,7 +407,7 @@ class LockableConcurrentJob implements Lockable
 
     public function handle()
     {
-        self::$slots[] = $slot = $this->reserveSlot();
+        self::$slots[] = $this->reserveSlot();
     }
 
     public function startFrom()
