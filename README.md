@@ -47,7 +47,7 @@ This is useful when your Jobs needs sequential data: Serial keys, result of calc
 
 1) Add the `Lockable` interface to your Job, Notification or Listener.
 
-2) Add the `Locks` trait.
+2) Add the `HandlesLock` trait.
 
 3) Then implement the `startFrom()` and `next($slot)` methods.
 
