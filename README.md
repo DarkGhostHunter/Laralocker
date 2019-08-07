@@ -264,6 +264,64 @@ class CreateTicket implements ShouldQueue, Lockable
 }
 ```
 
+## Configuration
+
+Laralocker works hands-off, but if you need to change the default configuration, just publish the config file.
+
+```bash
+php artisan vendor:publish --provider=DarkGhostHunter\Laralocker\LaralockerServiceProvider
+```
+
+You will get a `laralocker.php` file in your config directory with the following contents:
+
+```php
+<?php 
+return [
+    'cache' => null,
+    'prefix' => 'queue_locker',
+    'ttl' => 60,
+];
+```
+
+The contents are pretty much self-explanatory, but let's describe them one by one.
+
+### Cache
+
+Laralocker uses the default Cache of your application when this is set to `null`. On fresh Laravel installations, it's the `file` store.
+ 
+If you need high performance, you may want to switch to `redis`, `sqs`, `memecached` or whatever you have available for your application. This must be one of your `stores` described in your `config/cache.php` file. 
+
+```php
+<?php 
+return [
+    'cache' => 'redis',
+];
+```
+
+### Prefix
+
+To avoid collision with other Cache keys, Laralock will prefix the slots with a string. If for any reason you're using this prefix in your application, you may want to change it.
+
+```php
+<?php 
+return [
+    'prefix' => 'app_slots_queue',
+];
+```
+
+### Slot Reservation Time-to-Live
+
+Slots reserved in the cache always have a maximum time to live, which after that are automatically freed. This is a mechanism to avoid creeping the Cache with zombie reservations.
+
+Of course some Jobs may take its while to process. You may want to extend this to a safe value if your Jobs may take much time.
+
+```php
+<?php 
+return [
+    'ttl' => 300,
+];
+```
+
 ## Releasing and Clearing slots
 
 When a Job fails, the `releaseSlot()` shouldn't be reached. This will allow to NOT update the last slot if the job fails, and will leave the slot reserved until it expires. 
