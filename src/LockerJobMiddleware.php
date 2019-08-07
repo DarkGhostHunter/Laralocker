@@ -18,16 +18,16 @@ class LockerJobMiddleware
      */
     public function handle(Lockable $command, Closure $next)
     {
-        $command->lock();
+        $command->reserveSlot();
 
         try {
             $result = $next($command);
         } catch (Throwable $throwable) {
-            $command->clear();
+            $command->clearSlot();
             throw $throwable;
         }
 
-        $command->release();
+        $command->releaseSlot();
 
         return $result;
     }

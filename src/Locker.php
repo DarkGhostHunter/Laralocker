@@ -70,10 +70,10 @@ class Locker
     {
         // If the slot was reserved before the time were we updated the last slot used, then we will
         // update it. This will allow next Jobs to use get the next slot from the last used instead
-        // of the very beginning, and block the next jobs from overriding it with a previous slot.
+        // from the very beginning, and block the next jobs from replacing it with a previous slot.
         if ($this->lastSlotTime() < $this->reservedSlotTime()) {
             $this->repository->forever($this->prefix . ':microtime', microtime(true));
-            $this->repository->forever($this->prefix . ':last_slot', $this->instance->slot);
+            $this->repository->forever($this->prefix . ':last_slot', $this->instance->getSlot());
         }
     }
 
@@ -84,7 +84,7 @@ class Locker
      */
     protected function lastSlotTime()
     {
-        return $this->repository->get($this->prefix . ':microtime');
+        return $this->repository->get($this->prefix . ':microtime', 0);
     }
 
     /**
@@ -97,7 +97,7 @@ class Locker
         // If we miss the cache, we will assume it expired while the Job was still processing.
         // In that case, returning zero will allow to NOT update the last saved slot because
         // we don't have any guarantee if this Job ended before the last one to update it.
-        return $this->repository->get($this->key($this->instance->slot), 0);
+        return $this->repository->get($this->key($this->instance->getSlot()), 0);
     }
 
     /**
@@ -119,7 +119,7 @@ class Locker
     public function releaseSlot()
     {
         return $this->repository->forget(
-            $this->key($this->instance->slot)
+            $this->key($this->instance->getSlot())
         );
     }
 
@@ -136,7 +136,7 @@ class Locker
             $slot = $this->instance->next($slot);
         } while ($this->isReserved($slot));
 
-        return $this->reserveSlot($slot);
+        return $this->instance->setSlot($this->reserveSlot($slot));
     }
 
     /**
@@ -146,7 +146,10 @@ class Locker
      */
     protected function initialSlot()
     {
-        return $this->repository->remember($this->keyPrefix() . ':last_slot', null, function () {
+        // The logic in these lines is fairly simplistic. If we did not save in the cache the
+        // last slot, we will call the job to tell us where to start. Once we save it, we
+        // will prefer retrieving the last slot from the cache because its be faster.
+        return $this->repository->remember($this->prefix . ':last_slot', null, function () {
             return $this->instance->startFrom();
         });
     }
@@ -170,7 +173,7 @@ class Locker
      */
     protected function reserveSlot($slot)
     {
-        $this->repository->put($this->key($slot), microtime(true), $this->reservationTtl());
+        $this->repository->put($this->key($slot), microtime(true), $this->ttl);
 
         return $slot;
     }

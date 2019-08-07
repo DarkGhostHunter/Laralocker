@@ -4,12 +4,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Lock handler
+    | Lock Cache handler
     |--------------------------------------------------------------------------
     |
-    | We need to use your application cache to save the lock information of
-    | each job. The default option is the default cache of your app, but
-    | you can set other connections as long they're registered inside.
+    | We need to use your application default Cache to save information about
+    | the lock in each Job. You can change this default to any you want as
+    | long the connection is set and configured inside your application.
     |
     */
 
@@ -38,5 +38,6 @@ return [
     | Listeners, and then set one for each one of these if you need it.
     |
     */
+
     'ttl' => 60,
 ];

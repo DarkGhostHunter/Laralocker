@@ -44,17 +44,6 @@ class LockerManager
     }
 
     /**
-     * Locks the Job
-     *
-     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
-     * @return void
-     */
-    public function lockJob(LockableContract $instance)
-    {
-        $this->instanceLocker($instance)->reserveNextAvailableSlot();
-    }
-
-    /**
      * Instances a new Locker object depending on the Job configuration
      *
      * @param $instance
@@ -64,9 +53,43 @@ class LockerManager
     {
         return new Locker(
             $instance,
-            $this->getCache($instance),
-            $this->getReservationTtl($instance),
-            $this->getPrefix($instance));
+            $this->useCache($instance),
+            $this->usePrefix($instance),
+            $this->useReservationTtl($instance)
+        );
+    }
+
+    /**
+     * Locks the Job slot
+     *
+     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
+     * @return void
+     */
+    public function lockSlot(LockableContract $instance)
+    {
+        $this->instanceLocker($instance)->reserveNextAvailableSlot();
+    }
+
+    /**
+     * Releases the Job slot from for locking system and updates the last slot
+     *
+     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
+     * @return void
+     */
+    public function releaseSlot(LockableContract $instance)
+    {
+        $this->instanceLocker($instance)->handleSlotRelease();
+    }
+
+    /**
+     * Clears the Job reserved slot
+     *
+     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
+     * @return void
+     */
+    public function clearSlot(LockableContract $instance)
+    {
+        $this->instanceLocker($instance)->releaseSlot();
     }
 
     /**
@@ -75,7 +98,7 @@ class LockerManager
      * @param $instance
      * @return \Illuminate\Contracts\Cache\Repository
      */
-    protected function getCache($instance)
+    protected function useCache($instance)
     {
         return method_exists($instance, 'cache') ? $instance->cache() : $this->repository;
     }
@@ -86,13 +109,11 @@ class LockerManager
      * @param $instance
      * @return int
      */
-    protected function getReservationTtl($instance)
+    protected function useReservationTtl($instance)
     {
         return $instance->slotTtl
             ?? $instance->timeout
-            ?? method_exists($instance, 'retryUntil')
-                ? $instance->retryUntil()
-                : $this->ttl;
+            ?? (method_exists($instance, 'retryUntil') ? $instance->retryUntil() : $this->ttl);
     }
 
     /**
@@ -101,29 +122,8 @@ class LockerManager
      * @param $instance
      * @return string
      */
-    protected function getPrefix($instance)
+    protected function usePrefix($instance)
     {
         return $instance->prefix ?? $this->prefix;
-    }
-
-    /**
-     * Releases the Job from for locking system
-     *
-     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
-     */
-    public function releaseJob(LockableContract $instance)
-    {
-        $this->instanceLocker($instance)->handleSlotRelease();
-    }
-
-    /**
-     * Clears the Job slot reservation in case of failure
-     *
-     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
-     * @return void
-     */
-    public function clearJob(LockableContract $instance)
-    {
-        $this->instanceLocker($instance)->releaseSlot();
     }
 }

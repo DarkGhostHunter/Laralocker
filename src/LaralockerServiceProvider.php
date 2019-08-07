@@ -2,9 +2,6 @@
 
 namespace DarkGhostHunter\Laralocker;
 
-use DarkGhostHunter\Laralocker\Listeners\CleansJobListener;
-use DarkGhostHunter\Laralocker\Listeners\LocksJobListener;
-use DarkGhostHunter\Laralocker\Listeners\ReleasesJobListener;
 use Illuminate\Support\ServiceProvider;
 
 class LaralockerServiceProvider extends ServiceProvider
@@ -16,7 +13,7 @@ class LaralockerServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/config.php', 'laralocker');
+        $this->mergeConfigFrom(__DIR__ . '/../config/laralocker.php', 'laralocker');
 
         $this->registerLockerBinding();
     }
@@ -28,7 +25,14 @@ class LaralockerServiceProvider extends ServiceProvider
      */
     protected function registerLockerBinding()
     {
-        $this->app->singleton(LockerManager::class);
+        $this->app->singleton(LockerManager::class, function ($app) {
+            $config = $app['config'];
+            return new LockerManager(
+                $app['cache']->store($config['laralocker.cache']),
+                $config['laralocker.prefix'],
+                $config['laralocker.ttl']
+            );
+        });
     }
 
     /**
@@ -40,7 +44,7 @@ class LaralockerServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../config/config.php' => config_path('laralocker.php'),
+                __DIR__ . '/../config/laralocker.php' => config_path('laralocker.php'),
             ], 'config');
         }
     }

@@ -5,6 +5,21 @@ namespace DarkGhostHunter\Laralocker\Contracts;
 interface Lockable
 {
     /**
+     * Returns the Slot being used by the Job
+     *
+     * @return mixed
+     */
+    public function getSlot();
+
+    /**
+     * Saves the Slot to use by the Job
+     *
+     * @param $slot
+     * @return void
+     */
+    public function setSlot($slot);
+
+    /**
      * Return the starting slot for the Jobs
      *
      * @return mixed
@@ -20,23 +35,23 @@ interface Lockable
     public function next($slot);
 
     /**
-     * Locks the current Job
+     * Reserves the current Job slot
      *
      * @return mixed
      */
-    public function lock();
+    public function reserveSlot();
 
     /**
-     * Unlocks the current Job
+     * Releases the current Job slot and updates the last slot
      *
      * @return void
      */
-    public function release();
+    public function releaseSlot();
 
     /**
-     * Clears the Job
+     * Clears the current Job slot reserved
      *
      * @return void
      */
-    public function clear();
+    public function clearSlot();
 }
