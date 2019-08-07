@@ -51,6 +51,9 @@ class LockerManager
      */
     protected function instanceLocker($instance)
     {
+        // While this Locker Manager class handles the Locker instance, the latter is what
+        // does the magic of looking ahead, reserving, releasing and saving slots. This
+        // way we avoid any shared instances of the Locker class to handle Job slots.
         return new Locker(
             $instance,
             $this->useCache($instance),
