@@ -21,3 +21,4 @@ script:
 
 after_script:
   - php vendor/bin/ocular code-coverage:upload --format=php-clover coverage.clover
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
