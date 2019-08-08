@@ -72,6 +72,22 @@ public $middleware = [
 
 Add `$this->reserveSlot()` and `$this->releaseSlot()` to the start and end of your `handle()` method, respectively.
 
+```php
+/**
+ * Execute the job.
+ *
+ * @return void
+ */
+public function handle()
+{
+    $this->reserveSlot();
+
+    // My Job Logic...
+
+    $this->releaseSlot();
+}
+```
+
 ## Example
 
 Here is a full example of a simple Listener that handles Serial Keys when a Ticket is sold for a given Concert to a given User. Once done, the user will be able to print his ticket and use it on the Concert premises to enter.
