@@ -35,9 +35,9 @@ Using this package, all Tickets can be dispatched concurrently without fear of c
 
 ## How it works
 
-This package allows your Job, Listener or Notification to be `Lockable` With just adding three lines of code, the Job will *look ahead* for a free "slot", and reserve it.
+This package allows your Job, Listener or Notification to be `Lockable`. With just adding three lines of code, the Job will *look ahead* for a free "slot", and reserve it.
 
-> For sake of simplicity, I will treat Notifications and Listeners as a Jobs.
+> For sake of simplicity, I will treat Notifications and Listeners as a Jobs, since all of these can be pushed to the Queue.
 
 Once the Job finishes processing, it will release the "slot", and mark that slot as the starting point for the next Jobs so they don't look ahead from the very beginning.
 
@@ -51,7 +51,7 @@ This is useful when your Jobs needs sequential data: Serial keys, result of calc
 
 3) Then implement the `startFrom()` and `next($slot)` methods.
 
-The fourth steps depends on your Laravel version.
+The fourth step depends on your Laravel version.
 
 ### For Laravel 6.0
 
@@ -84,10 +84,10 @@ namespace App\Listeners;
 use App\Ticket;
 use App\Events\TicketSold;
 use App\Notifications\TicketAvailableNotification;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use DarkGhostHunter\Laralocker\Contracts\Lockable;
 use DarkGhostHunter\Laralocker\LockerJobMiddleware;
 use DarkGhostHunter\Laralocker\HandlesSlot;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use SerialGenerator\SerialGenerator;
 
 class CreateTicket implements ShouldQueue, Lockable
@@ -153,7 +153,7 @@ class CreateTicket implements ShouldQueue, Lockable
             new TicketAvailableNotification($ticket)        
         );
 
-        // Unlock the job
+        // Release the Slot
         // $this->releaseSlot(); // Not needed for Laravel 6.0
     }
 }
@@ -163,33 +163,39 @@ Let's start checking what each method does.
 
 ### Starting with `reserveSlot()` and ending with `releaseSlot()`
 
-> If you're using Laravel 5.8, you will need to use these methods manually.
+> If you're using Laravel 5.8, you will need to use these methods in inside your Job.
 
-The `reserveSlot()` method boots up the locking system to reserve the job slot. Ideally, this should be in the first line of code, but as long is before calling the `$this->slot` will be fine.
+The `reserveSlot()` method boots up the locking system to reserve the job slot. Ideally, this should be in the first line of code, but as long is present before any call to the `$this->slot` will be fine.
 
 The `releaseSlot()` method tells the locking system to release the job, like a "light clean up". This should be the last line of code.
 
-The `clearSlot()` can be used only free the reserved slot when you use  `fail()` or `release()`. It allows for other jobs to re-use the slot immediately, avoiding slot jumping.
+The `clearSlot()` only frees the reserved slot before you use `fail()` or `release()`. It allows for other jobs to re-use the slot immediately, avoiding "slot jumping".
 
 ### `startFrom()`
 
-When the Job asks where to start, this will be used to get the "last slot" used.
+When the Job asks where to start, this will be used to get the "last slot" used. 
 
-Once this starting point is retrieved, the Locker will save the last used in the Cache and retrieve it from there, instead of executing this method in each Job. This is used only when the first Job hits the queue, or if the cache returns null (maybe because you flushed it).
+If it's the first, its fine to return `null`.
+
+Once this starting point is retrieved, the Locker will save it in the Cache. Subsequent calls to the starting point will be use the Cache instead of of executing this method in each Job. 
+
+This is used only when the first Job hits the queue, or if the cache returns null (maybe because you flushed it).
 
 > You should return a string, or an [object instance that can be represented as a string](https://www.php.net/manual/en/language.oop5.magic.php#object.tostring).
 
 ### `next($slot)`
 
-After retrieving the starting slot, the Queue Worker will put it into this method to get the next slot that should be free to reserve.
+After retrieving the starting slot, the Queue Worker will put it into this method to get the next slot that should be free to reserve. It may receive anything you set, even `null`.
 
 If the next slot was already "reserved" by another Job, it will recursively call `next($slot)` until it finds one that is not.
 
-> For example, if your first slot is `10`, the method will receive `10` and then return `20`. The Locker will check if `20` is reserved, and if its not free, then it call `next()` again but using `20`, and so on, until it finds one that is not reserved, like `60`.
+> For example, if your initial slot is `null`, the method will receive `null`, add ten and then return `10`. The Locker will check if `10` is reserved, and if its not free, then it call `next($slot)` again but using `10`, and so on, until it finds one that is not reserved, like `60`.
 
 ### `cache()` (optional)
 
 This is entirely optional. If you want that particular Job to use another Cache store, you can return it here. Just remember to [have properly configured the Cache driver](https://laravel.com/docs/5.8/cache#driver-prerequisites) you want to use in your application beforehand.
+
+If your cache is compatible with tagging, like `redis` and `memcached`, you can set your tag here transparently. This allows you to flush a tag if something goes wrong, or have more granular control on it.
 
 ```php
 <?php 
@@ -209,14 +215,14 @@ class CreateTicket implements ShouldQueue, Lockable
      */
     public function cache()
     {
-        return Cache::store('sqs');
+        return Cache::store('redis')->tag('tickets_queue');
     }
 }
 ```
 
 ### `$slotTtl` (optional)
 
-Also entirely optional. Slots are reserved by a given time by using the Cache. While the default is of 60 seconds, you can set a bigger _ttl_ if your Job takes its sweet time, like 10 minutes.
+Also entirely optional. Slots are reserved in the Cache by 60 seconds as default. You can set a bigger _ttl_ if your Job takes its sweet time, like 10 minutes.
 
 Is always recommended to set a maximum to avoid slot creeping in your Cache store.
 
@@ -239,11 +245,11 @@ class CreateTicket implements ShouldQueue, Lockable
 }
 ```
 
-> If you don't use `$slotTtl`, the Locker will automatically get it from the `$timeout`, `retryUntil()` and finally the default from the config file, to match the Job lifecycle.
+> If you don't use `$slotTtl`, the Locker will automatically get it from the `$timeout`, `retryUntil()`, or the default from the config file, in that order.
 
 ### `$prefix` (optional)
 
-Also optional, this manages the prefix that it will be used for the slot reservations for the Job.
+Also optional, this manages the prefix that it will be used for the slot reservations for the Job, avoiding clashing with other Cache keys.
 
 ```php
 <?php 

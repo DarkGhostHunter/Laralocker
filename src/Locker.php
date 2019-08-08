@@ -7,11 +7,11 @@ use Illuminate\Contracts\Cache\Repository;
 class Locker
 {
     /**
-     * Cache Repository
+     * Cache Store
      *
      * @var \Illuminate\Contracts\Cache\Repository
      */
-    protected $repository;
+    protected $store;
 
     /**
      * Queued Lockable Job instance
@@ -38,14 +38,14 @@ class Locker
      * Creates a new Concurrent instance
      *
      * @param $instance
-     * @param \Illuminate\Contracts\Cache\Repository $repository
+     * @param \Illuminate\Contracts\Cache\Repository $store
      * @param string $prefix
      * @param int $ttl
      */
-    public function __construct($instance, Repository $repository, string $prefix, int $ttl)
+    public function __construct($instance, Repository $store, string $prefix, int $ttl)
     {
         $this->instance = $instance;
-        $this->repository = $repository;
+        $this->store = $store;
         $this->prefix = $prefix;
         $this->ttl = $ttl;
     }
@@ -72,8 +72,8 @@ class Locker
         // update it. This will allow next Jobs to use get the next slot from the last used instead
         // from the very beginning, and block the next jobs from replacing it with a previous slot.
         if ($this->lastSlotTime() < $this->reservedSlotTime()) {
-            $this->repository->forever($this->prefix . ':microtime', microtime(true));
-            $this->repository->forever($this->prefix . ':last_slot', $this->instance->getSlot());
+            $this->store->forever($this->prefix . ':microtime', microtime(true));
+            $this->store->forever($this->prefix . ':last_slot', $this->instance->getSlot());
         }
     }
 
@@ -84,7 +84,7 @@ class Locker
      */
     protected function lastSlotTime()
     {
-        return $this->repository->get($this->prefix . ':microtime', 0);
+        return $this->store->get($this->prefix . ':microtime', 0);
     }
 
     /**
@@ -97,7 +97,7 @@ class Locker
         // If we miss the cache, we will assume it expired while the Job was still processing.
         // In that case, returning zero will allow to NOT update the last saved slot because
         // we don't have any guarantee if this Job ended before the last one to update it.
-        return $this->repository->get($this->key($this->instance->getSlot()), 0);
+        return $this->store->get($this->key($this->instance->getSlot()), 0);
     }
 
     /**
@@ -118,7 +118,7 @@ class Locker
      */
     public function releaseSlot()
     {
-        return $this->repository->forget(
+        return $this->store->forget(
             $this->key($this->instance->getSlot())
         );
     }
@@ -149,7 +149,7 @@ class Locker
         // The logic in these lines is fairly simplistic. If we did not save in the cache the
         // last slot, we will call the job to tell us where to start. Once we save it, we
         // will prefer retrieving the last slot from the cache because its be faster.
-        return $this->repository->remember($this->prefix . ':last_slot', null, function () {
+        return $this->store->remember($this->prefix . ':last_slot', null, function () {
             return $this->instance->startFrom();
         });
     }
@@ -162,7 +162,7 @@ class Locker
      */
     protected function isReserved($slot)
     {
-        return $this->repository->has($this->key($slot));
+        return $this->store->has($this->key($slot));
     }
 
     /**
@@ -173,7 +173,7 @@ class Locker
      */
     protected function reserveSlot($slot)
     {
-        $this->repository->put($this->key($slot), microtime(true), $this->ttl);
+        $this->store->put($this->key($slot), microtime(true), $this->ttl);
 
         return $slot;
     }

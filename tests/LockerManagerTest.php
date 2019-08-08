@@ -270,6 +270,45 @@ class LockerManagerTest extends TestCase
         $this->assertEquals(20, $job_1->getSlot()); // Failed 3 times, reserved 3 slots ahead
         $this->assertEquals(50, $job_2->getSlot());
     }
+
+    public function testWorksWithTaggableCache()
+    {
+        $job_0 = new LockableTaggableJob;
+        $job_1 = new LockableTaggableJob;
+        $job_2 = new LockableTaggableJob;
+        $job_3 = new LockableTaggableJob;
+        $job_4 = new LockableTaggableJob;
+        $job_5 = new LockableTaggableJob;
+        $job_6 = new LockableTaggableJob;
+
+        $job_0->handle();
+        $job_1->handle();
+        $job_2->handle();  // Stalls and dies
+        $job_1->releaseSlot(); // Inverse Order
+        $job_0->releaseSlot(); // Inverse Order
+        $job_3->handle(); // Starts when other is stalled
+        $job_3->releaseSlot(); // Ends when other is stalled
+        $job_4->handle();
+        $job_4->releaseSlot();
+        $job_2->releaseSlot(); // Stalls releases lock late
+        $job_5->handle();
+        $job_6->handle();
+        $job_5->releaseSlot();
+        $job_6->releaseSlot();
+
+        $this->assertEquals([
+            '10', '20', '30', '40', '50', '60', '70'
+        ], LockableTaggableJob::$slots);
+        LockableTaggableJob::$slots = [];
+
+        $this->assertEquals(10, $job_0->getSlot());
+        $this->assertEquals(20, $job_1->getSlot());
+        $this->assertEquals(30, $job_2->getSlot());
+        $this->assertEquals(40, $job_3->getSlot());
+        $this->assertEquals(50, $job_4->getSlot());
+        $this->assertEquals(60, $job_5->getSlot());
+        $this->assertEquals(70, $job_6->getSlot());
+    }
 }
 
 class LockableJob implements ShouldQueue, Lockable
@@ -418,5 +457,13 @@ class LockableConcurrentJob implements Lockable
     public function next($slot)
     {
         return $slot + 10;
+    }
+}
+
+class LockableTaggableJob extends LockableConcurrentJob
+{
+    public function cache()
+    {
+        return Cache::store('array')->tags('test_tag_store');
     }
 }

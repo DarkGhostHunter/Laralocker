@@ -12,7 +12,7 @@ class LockerManager
      *
      * @var \Illuminate\Contracts\Cache\Repository
      */
-    protected $repository;
+    protected $store;
 
     /**
      * Default prefix to add to the reservations
@@ -31,14 +31,14 @@ class LockerManager
     /**
      * Create a new Locker Manager instance.
      *
-     * @param \Illuminate\Contracts\Cache\Repository $repository
+     * @param \Illuminate\Contracts\Cache\Repository $store
      * @param string $prefix
      * @param int $ttl
      * @return void
      */
-    public function __construct(Repository $repository, string $prefix, int $ttl)
+    public function __construct(Repository $store, string $prefix, int $ttl)
     {
-        $this->repository = $repository;
+        $this->store = $store;
         $this->prefix = $prefix;
         $this->ttl = $ttl;
     }
@@ -56,7 +56,7 @@ class LockerManager
         // way we avoid any shared instances of the Locker class to handle Job slots.
         return new Locker(
             $instance,
-            $this->useCache($instance),
+            $this->useStore($instance),
             $this->usePrefix($instance),
             $this->useReservationTtl($instance)
         );
@@ -101,9 +101,9 @@ class LockerManager
      * @param $instance
      * @return \Illuminate\Contracts\Cache\Repository
      */
-    protected function useCache($instance)
+    protected function useStore($instance)
     {
-        return method_exists($instance, 'cache') ? $instance->cache() : $this->repository;
+        return method_exists($instance, 'cache') ? $instance->cache() : $this->store;
     }
 
     /**
