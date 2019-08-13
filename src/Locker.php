@@ -68,9 +68,9 @@ class Locker
      */
     protected function updateInitialSlot()
     {
-        // If the slot was reserved before the time were we updated the last slot used, then we will
-        // update it. This will allow next Jobs to use get the next slot from the last used instead
-        // from the very beginning, and block the next jobs from replacing it with a previous slot.
+        // To avoid updating the last saved slot with an old slot, we will check if this last slot
+        // was saved before the moment we reserved the next in the locker. Otherwise, we will not
+        // update it, since it will make the next job to use a (probably) already used old slot.
         if ($this->lastSlotTime() < $this->reservedSlotTime()) {
             $this->store->forever($this->prefix . ':microtime', microtime(true));
             $this->store->forever($this->prefix . ':last_slot', $this->instance->getSlot());
