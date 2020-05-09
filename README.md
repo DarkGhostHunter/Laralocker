@@ -49,10 +49,6 @@ This is useful when your Jobs needs sequential data: Serial keys, result of calc
 
 3) Then implement the `startFrom()` and `next($slot)` methods.
 
-The fourth step depends on your Laravel version.
-
-### For Laravel 6.0
-
 This package uses the power of the new [Job Middleware](https://laravel-news.com/job-middleware-is-coming-to-laravel-6). Just add the `LockerJobMiddleware` to your Job middleware and you're done.
 
 ```php
@@ -64,26 +60,6 @@ This package uses the power of the new [Job Middleware](https://laravel-news.com
 public $middleware = [
     LockerJobMiddleware::class,
 ];
-```
-
-### For Laravel 5.8
-
-Add `$this->reserveSlot()` and `$this->releaseSlot()` to the start and end of your `handle()` method, respectively.
-
-```php
-/**
- * Execute the job.
- *
- * @return void
- */
-public function handle()
-{
-    $this->reserveSlot();
-
-    // My Job Logic...
-
-    $this->releaseSlot();
-}
 ```
 
 ## Example
@@ -176,8 +152,6 @@ class CreateTicket implements ShouldQueue, Lockable
 Let's start checking what each method does.
 
 ### Starting with `reserveSlot()` and ending with `releaseSlot()`
-
-> If you're using Laravel 5.8, you will need to use these methods in inside your Job.
 
 The `reserveSlot()` method boots up the locking system to reserve the job slot. Ideally, this should be in the first line of code, but as long is present before any call to the `$this->slot` will be fine.
 
