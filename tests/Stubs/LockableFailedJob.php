@@ -3,24 +3,35 @@
 namespace DarkGhostHunter\Laralocker\Tests\Stubs;
 
 use DarkGhostHunter\Laralocker\Contracts\Lockable;
-use DarkGhostHunter\Laralocker\HandlesSlot;
+use DarkGhostHunter\Laralocker\HandlesLockerSlot;
+use DarkGhostHunter\Laralocker\LockerJobMiddleware;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 
 class LockableFailedJob implements ShouldQueue, Lockable
 {
     use InteractsWithQueue;
-    use HandlesSlot;
+    use HandlesLockerSlot;
+
+    /**
+     * Get the middleware the job should pass through.
+     *
+     * @return array
+     */
+    public function middleware()
+    {
+        return [new LockerJobMiddleware()];
+    }
 
     public static $current_slot = 0;
 
     public function handle()
     {
-        $this->reserveSlot();
+//        $this->reserveSlot();
 
         static::$current_slot = $this->slot;
 
-        $this->clearSlot();
+//        $this->clearSlot();
         $this->fail();
     }
 

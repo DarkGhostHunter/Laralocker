@@ -2,7 +2,7 @@
 
 namespace DarkGhostHunter\Laralocker;
 
-use DarkGhostHunter\Laralocker\Contracts\Lockable as LockableContract;
+use DarkGhostHunter\Laralocker\Contracts\Lockable;
 use Illuminate\Contracts\Cache\Repository;
 
 class LockerManager
@@ -12,21 +12,21 @@ class LockerManager
      *
      * @var \Illuminate\Contracts\Cache\Repository
      */
-    protected $store;
+    protected Repository $store;
 
     /**
      * Default prefix to add to the reservations
      *
      * @var string
      */
-    protected $prefix;
+    protected string $prefix;
 
     /**
      * Default time to live for the reservations
      *
      * @var int
      */
-    protected $ttl;
+    protected int $ttl;
 
     /**
      * Create a new Locker Manager instance.
@@ -44,89 +44,96 @@ class LockerManager
     }
 
     /**
-     * Instances a new Locker object depending on the Job configuration
+     * Instances a new Locker object depending on the Job configuration.
      *
-     * @param $instance
+     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $job
+     *
      * @return \DarkGhostHunter\Laralocker\Locker
      */
-    protected function instanceLocker($instance)
+    protected function instanceLocker(Lockable $job): Locker
     {
         // While this Locker Manager class handles the Locker instance, the latter is what
         // does the magic of looking ahead, reserving, releasing and saving slots. This
         // way we avoid any shared instances of the Locker class to handle Job slots.
         return new Locker(
-            $instance,
-            $this->useStore($instance),
-            $this->usePrefix($instance),
-            $this->useReservationTtl($instance)
+            $job,
+            $this->useStore($job),
+            $this->usePrefix($job),
+            $this->useReservationTtl($job)
         );
     }
 
     /**
-     * Locks the Job slot
+     * Locks the Job slot.
      *
-     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
+     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $job
+     *
      * @return void
      */
-    public function lockSlot(LockableContract $instance)
+    public function lockSlot(Lockable $job): void
     {
-        $this->instanceLocker($instance)->reserveNextAvailableSlot();
+        $this->instanceLocker($job)->reserveNextAvailableSlot();
     }
 
     /**
-     * Releases the Job slot from for locking system and updates the last slot
+     * Releases the Job slot from for locking system and updates the last slot.
      *
-     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
+     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $job
+     *
      * @return void
      */
-    public function releaseSlot(LockableContract $instance)
+    public function releaseSlot(Lockable $job): void
     {
-        $this->instanceLocker($instance)->handleSlotRelease();
+        $this->instanceLocker($job)->handleSlotRelease();
     }
 
     /**
-     * Clears the Job reserved slot
+     * Clears the Job reserved slot.
      *
-     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
+     * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $job
+     *
      * @return void
      */
-    public function clearSlot(LockableContract $instance)
+    public function clearSlot(Lockable $job): void
     {
-        $this->instanceLocker($instance)->releaseSlot();
+        $this->instanceLocker($job)->releaseSlot();
     }
 
     /**
-     * Returns the Cache to use with the Job
+     * Returns the Cache to use with the Job.
      *
-     * @param $instance
+     * @param  \DarkGhostHunter\Laralocker\Contracts\Lockable  $job
+     *
      * @return \Illuminate\Contracts\Cache\Repository
      */
-    protected function useStore($instance)
+    protected function useStore(Lockable $job): Repository
     {
-        return method_exists($instance, 'cache') ? $instance->cache() : $this->store;
+        return method_exists($job, 'cache') ? $job->cache() : $this->store;
     }
 
     /**
-     * Return the Job maximum time to live before timing out
+     * Return the Job maximum time to live before timing out.
      *
-     * @param $instance
+     * @param  \DarkGhostHunter\Laralocker\Contracts\Lockable  $job
+     *
      * @return int
      */
-    protected function useReservationTtl($instance)
+    protected function useReservationTtl(Lockable $job): int
     {
-        return $instance->slotTtl
-            ?? $instance->timeout
-            ?? (method_exists($instance, 'retryUntil') ? $instance->retryUntil() : $this->ttl);
+        return $job->slotTtl
+            ?? $job->timeout
+            ?? (method_exists($job, 'retryUntil') ? $job->retryUntil() : $this->ttl);
     }
 
     /**
-     * Return the prefix to use with the Locker
+     * Return the prefix to use with the Locker.
      *
-     * @param $instance
+     * @param  \DarkGhostHunter\Laralocker\Contracts\Lockable  $job
+     *
      * @return string
      */
-    protected function usePrefix($instance)
+    protected function usePrefix(Lockable $job): string
     {
-        return $instance->prefix ?? $this->prefix;
+        return $job->prefix ?? $this->prefix;
     }
 }

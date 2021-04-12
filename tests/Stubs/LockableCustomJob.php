@@ -3,43 +3,40 @@
 namespace DarkGhostHunter\Laralocker\Tests\Stubs;
 
 use DarkGhostHunter\Laralocker\Contracts\Lockable;
-use DarkGhostHunter\Laralocker\HandlesSlot;
-use Illuminate\Cache\Repository;
-use Mockery;
+use DarkGhostHunter\Laralocker\HandlesLockerSlot;
+use DarkGhostHunter\Laralocker\LockerJobMiddleware;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class LockableCustomJob implements Lockable
+class LockableCustomJob implements Lockable, ShouldQueue
 {
-    use HandlesSlot;
+    use HandlesLockerSlot;
 
-    public $slotTtl = 99;
+    /**
+     * Get the middleware the job should pass through.
+     *
+     * @return array
+     */
+    public function middleware()
+    {
+        return [new LockerJobMiddleware()];
+    }
 
-    public $prefix = 'test_prefix';
+    public int $slotTtl = 99;
+
+    public string $prefix = 'test_prefix';
+
+    public static bool $cacheCalled = false;
 
     public function handle()
     {
-        $this->reserveSlot();
+//        $this->reserveSlot();
     }
 
     public function cache()
     {
-        $mock = Mockery::spy(Repository::class);
+        static::$cacheCalled = true;
 
-        $mock->shouldReceive('remember')
-            ->once()
-            ->with('test_prefix:last_slot', null, Mockery::type('Closure'))
-            ->andReturn(1);
-
-        $mock->shouldReceive('has')
-            ->once()
-            ->with('test_prefix|11')
-            ->andReturnFalse();
-
-        $mock->expects('put')
-            ->once()
-            ->with('test_prefix|11', Mockery::type('float'), 99)
-            ->andReturnTrue();
-
-        return $mock;
+        return app('cache.store');
     }
 
     public function startFrom()

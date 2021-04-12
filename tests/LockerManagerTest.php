@@ -15,14 +15,14 @@ class LockerManagerTest extends TestCase
 {
     use RegistersPackage;
 
-    public function testLocksJobs()
+    public function test_locks_jobs(): void
     {
         $job = new LockableJob;
 
         $repository = Mockery::mock(Repository::class);
 
         Cache::shouldReceive('store')
-            ->once()
+            ->twice()
             ->andReturn($repository);
 
         $repository->expects('remember')
@@ -65,13 +65,13 @@ class LockerManagerTest extends TestCase
             ->with('queue_locker|11')
             ->andReturnTrue();
 
-        $job->handle();
+        dispatch($job);
 
-        $this->assertEquals(11, LockableJob::$current_slot);
+        static::assertEquals(11, LockableJob::$current_slot);
         LockableJob::$current_slot = 0;
     }
 
-    public function testLockableFailedDoesNotClears()
+    public function test_lockable_failed_does_clears_instead_of_releasing(): void
     {
         $repository = Mockery::mock(Repository::class);
 
@@ -99,10 +99,12 @@ class LockerManagerTest extends TestCase
             ->andReturnTrue();
 
         $repository->shouldNotReceive('get')
-            ->with('queue_locker|11', 0);
+            ->with('queue_locker|11', 0)
+            ->andReturn(0);
 
         $repository->shouldNotReceive('get')
-            ->with('queue_locker:microtime');
+            ->with('queue_locker:microtime', 0)
+            ->andReturn(0);
 
         $repository->shouldNotReceive('forever')
             ->with('queue_locker:microtime', Mockery::type('float'));
@@ -112,12 +114,15 @@ class LockerManagerTest extends TestCase
 
         dispatch(new LockableFailedJob);
 
-        $this->assertEquals(11, LockableFailedJob::$current_slot);
+        static::assertEquals(11, LockableFailedJob::$current_slot);
     }
 
-    public function testLockableExceptionDoesNotClears()
+    public function test_lockable_exception_does_clears_instead_of_releasing(): void
     {
         $repository = Mockery::mock(Repository::class);
+
+        Cache::shouldReceive('store')
+            ->andReturn($repository);
 
         Cache::shouldReceive('store')
             ->andReturn($repository);
@@ -137,14 +142,18 @@ class LockerManagerTest extends TestCase
             ->with('queue_locker|11', Mockery::type('float'), config('laralocker.ttl'))
             ->andReturnTrue();
 
-        $repository->shouldNotReceive('forget')
-            ->with('queue_locker|11');
+        $repository->expects('forget')
+            ->once()
+            ->with('queue_locker|11')
+            ->andReturnTrue();
 
         $repository->shouldNotReceive('get')
-            ->with('queue_locker|11', 0);
+            ->with('queue_locker|11', 0)
+            ->andReturn(0);
 
         $repository->shouldNotReceive('get')
-            ->with('queue_locker:microtime');
+            ->with('queue_locker:microtime', 0)
+            ->andReturn(0);
 
         $repository->shouldNotReceive('forever')
             ->with('queue_locker:microtime', Mockery::type('float'));
@@ -155,8 +164,14 @@ class LockerManagerTest extends TestCase
         try {
             dispatch(new LockableExceptionJob);
         } catch (Exception $exception) {
-            $this->assertEquals(11, LockableExceptionJob::$current_slot);
+            static::assertEquals(11, LockableExceptionJob::$current_slot);
         }
+    }
 
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        Mockery::close();
     }
 }
