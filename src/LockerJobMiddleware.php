@@ -4,6 +4,7 @@ namespace DarkGhostHunter\Laralocker;
 
 use Closure;
 use DarkGhostHunter\Laralocker\Contracts\Lockable;
+use Illuminate\Queue\InteractsWithQueue;
 use Throwable;
 
 class LockerJobMiddleware
@@ -27,7 +28,12 @@ class LockerJobMiddleware
             throw $throwable;
         }
 
-        $command->releaseSlot();
+        if (in_array(InteractsWithQueue::class, class_uses_recursive($command), true) && $command->job->hasFailed()) {
+            $command->clearSlot();
+        } else {
+            $command->releaseSlot();
+        }
+
 
         return $result;
     }
