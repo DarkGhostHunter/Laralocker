@@ -11,21 +11,11 @@ class LaralockerServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    public function register()
+    public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/laralocker.php', 'laralocker');
 
-        $this->registerLockerBinding();
-    }
-
-    /**
-     * Registers the Locker binding into the Service Container
-     *
-     * @return void
-     */
-    protected function registerLockerBinding()
-    {
-        $this->app->singleton(LockerManager::class, function ($app) {
+        $this->app->bind(LockerManager::class, function ($app) {
             $config = $app['config'];
             return new LockerManager(
                 $app['cache']->store($config['laralocker.cache']),
@@ -40,12 +30,10 @@ class LaralockerServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->publishes([
-                __DIR__ . '/../config/laralocker.php' => config_path('laralocker.php'),
-            ], 'config');
+            $this->publishes([__DIR__ . '/../config/laralocker.php' => config_path('laralocker.php')], 'config');
         }
     }
 }

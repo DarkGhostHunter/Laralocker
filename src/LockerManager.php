@@ -12,21 +12,21 @@ class LockerManager
      *
      * @var \Illuminate\Contracts\Cache\Repository
      */
-    protected $store;
+    protected Repository $store;
 
     /**
      * Default prefix to add to the reservations
      *
      * @var string
      */
-    protected $prefix;
+    protected string $prefix;
 
     /**
      * Default time to live for the reservations
      *
      * @var int
      */
-    protected $ttl;
+    protected int $ttl;
 
     /**
      * Create a new Locker Manager instance.
@@ -49,7 +49,7 @@ class LockerManager
      * @param $instance
      * @return \DarkGhostHunter\Laralocker\Locker
      */
-    protected function instanceLocker($instance)
+    protected function instanceLocker($instance): Locker
     {
         // While this Locker Manager class handles the Locker instance, the latter is what
         // does the magic of looking ahead, reserving, releasing and saving slots. This
@@ -68,7 +68,7 @@ class LockerManager
      * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
      * @return void
      */
-    public function lockSlot(LockableContract $instance)
+    public function lockSlot(LockableContract $instance): void
     {
         $this->instanceLocker($instance)->reserveNextAvailableSlot();
     }
@@ -79,7 +79,7 @@ class LockerManager
      * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
      * @return void
      */
-    public function releaseSlot(LockableContract $instance)
+    public function releaseSlot(LockableContract $instance): void
     {
         $this->instanceLocker($instance)->handleSlotRelease();
     }
@@ -90,7 +90,7 @@ class LockerManager
      * @param \DarkGhostHunter\Laralocker\Contracts\Lockable $instance
      * @return void
      */
-    public function clearSlot(LockableContract $instance)
+    public function clearSlot(LockableContract $instance): void
     {
         $this->instanceLocker($instance)->releaseSlot();
     }
@@ -101,7 +101,7 @@ class LockerManager
      * @param $instance
      * @return \Illuminate\Contracts\Cache\Repository
      */
-    protected function useStore($instance)
+    protected function useStore($instance): Repository
     {
         return method_exists($instance, 'cache') ? $instance->cache() : $this->store;
     }
@@ -112,7 +112,7 @@ class LockerManager
      * @param $instance
      * @return int
      */
-    protected function useReservationTtl($instance)
+    protected function useReservationTtl($instance): int
     {
         return $instance->slotTtl
             ?? $instance->timeout
@@ -125,7 +125,7 @@ class LockerManager
      * @param $instance
      * @return string
      */
-    protected function usePrefix($instance)
+    protected function usePrefix($instance): string
     {
         return $instance->prefix ?? $this->prefix;
     }

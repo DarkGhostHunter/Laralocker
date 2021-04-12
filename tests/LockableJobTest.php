@@ -12,26 +12,23 @@ class LockableJobTest extends TestCase
 {
     use RegistersPackage;
 
-    public function testUsesCustomProperties()
+    public function test_uses_custom_properties(): void
     {
         dispatch(new LockableCustomJob);
+
+        static::assertTrue(LockableCustomJob::$cacheCalled);
     }
 
-    public function testSequentialJobs()
+    public function test_lockable_job_runs(): void
     {
-        $job_a = new LockableJob;
-        $job_b = new LockableJob;
-        $job_c = new LockableJob;
+        dispatch(new LockableJob);
+        dispatch(new LockableJob);
+        dispatch(new LockableJob);
 
-        $job_b->handle();
-        $job_c->handle();
-        $job_a->handle();
-
-        $this->assertEquals(31, LockableJob::$current_slot);
-        LockableJob::$current_slot = 0;
+        static::assertEquals(31, LockableJob::$current_slot);
     }
 
-    public function testConcurrentJobs()
+    public function test_concurrent_jobs(): void
     {
         $job_0 = new LockableConcurrentJob;
         $job_1 = new LockableConcurrentJob;
@@ -56,21 +53,18 @@ class LockableJobTest extends TestCase
         $job_5->releaseSlot();
         $job_6->releaseSlot();
 
-        $this->assertEquals([
-            '10', '20', '30', '40', '50', '60', '70'
-        ], LockableConcurrentJob::$slots);
-        LockableConcurrentJob::$slots = [];
+        static::assertEquals(['10', '20', '30', '40', '50', '60', '70'], LockableConcurrentJob::$slots);
 
-        $this->assertEquals(10, $job_0->getSlot());
-        $this->assertEquals(20, $job_1->getSlot());
-        $this->assertEquals(30, $job_2->getSlot());
-        $this->assertEquals(40, $job_3->getSlot());
-        $this->assertEquals(50, $job_4->getSlot());
-        $this->assertEquals(60, $job_5->getSlot());
-        $this->assertEquals(70, $job_6->getSlot());
+        static::assertEquals(10, $job_0->getSlot());
+        static::assertEquals(20, $job_1->getSlot());
+        static::assertEquals(30, $job_2->getSlot());
+        static::assertEquals(40, $job_3->getSlot());
+        static::assertEquals(50, $job_4->getSlot());
+        static::assertEquals(60, $job_5->getSlot());
+        static::assertEquals(70, $job_6->getSlot());
     }
 
-    public function testJobUsesClearedSlot()
+    public function test_job_uses_cleared_slot(): void
     {
         $job_0 = new LockableConcurrentJob;
         $job_1 = new LockableConcurrentJob;
@@ -86,17 +80,14 @@ class LockableJobTest extends TestCase
         $job_0->handle();
         $job_0->releaseSlot();
 
-        $this->assertEquals([
-            '10', '10', '20', '30',
-        ], LockableConcurrentJob::$slots);
-        LockableConcurrentJob::$slots = [];
+        static::assertEquals(['10', '10', '20', '30'], LockableConcurrentJob::$slots);
 
-        $this->assertEquals(10, $job_1->getSlot());
-        $this->assertEquals(20, $job_2->getSlot());
-        $this->assertEquals(30, $job_0->getSlot());
+        static::assertEquals(10, $job_1->getSlot());
+        static::assertEquals(20, $job_2->getSlot());
+        static::assertEquals(30, $job_0->getSlot());
     }
 
-    public function testJobRetriedAndDidntRelease()
+    public function test_job_retried_and_didnt_release(): void
     {
         $job_0 = new LockableConcurrentJob;
         $job_1 = new LockableConcurrentJob;
@@ -112,17 +103,14 @@ class LockableJobTest extends TestCase
         $job_2->handle();
         $job_0->releaseSlot();
 
-        $this->assertEquals([
-            '10', '20', '30', '40', '50',
-        ], LockableConcurrentJob::$slots);
-        LockableConcurrentJob::$slots = [];
+        static::assertEquals(['10', '20', '30', '40', '50'], LockableConcurrentJob::$slots);
 
-        $this->assertEquals(10, $job_0->getSlot());
-        $this->assertEquals(20, $job_1->getSlot()); // Failed 3 times, reserved 3 slots ahead
-        $this->assertEquals(50, $job_2->getSlot());
+        static::assertEquals(10, $job_0->getSlot());
+        static::assertEquals(20, $job_1->getSlot()); // Failed 3 times, reserved 3 slots ahead
+        static::assertEquals(50, $job_2->getSlot());
     }
 
-    public function testWorksWithTaggableCache()
+    public function test_works_with_taggable_cache(): void
     {
         $job_0 = new LockableTaggableJob;
         $job_1 = new LockableTaggableJob;
@@ -147,17 +135,23 @@ class LockableJobTest extends TestCase
         $job_5->releaseSlot();
         $job_6->releaseSlot();
 
-        $this->assertEquals([
-            '10', '20', '30', '40', '50', '60', '70'
-        ], LockableTaggableJob::$slots);
-        LockableTaggableJob::$slots = [];
+        static::assertEquals(['10', '20', '30', '40', '50', '60', '70'], LockableTaggableJob::$slots);
 
-        $this->assertEquals(10, $job_0->getSlot());
-        $this->assertEquals(20, $job_1->getSlot());
-        $this->assertEquals(30, $job_2->getSlot());
-        $this->assertEquals(40, $job_3->getSlot());
-        $this->assertEquals(50, $job_4->getSlot());
-        $this->assertEquals(60, $job_5->getSlot());
-        $this->assertEquals(70, $job_6->getSlot());
+        static::assertEquals(10, $job_0->getSlot());
+        static::assertEquals(20, $job_1->getSlot());
+        static::assertEquals(30, $job_2->getSlot());
+        static::assertEquals(40, $job_3->getSlot());
+        static::assertEquals(50, $job_4->getSlot());
+        static::assertEquals(60, $job_5->getSlot());
+        static::assertEquals(70, $job_6->getSlot());
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        LockableCustomJob::$cacheCalled = false;
+        LockableJob::$current_slot = 0;
+        LockableConcurrentJob::$slots = [];
     }
 }

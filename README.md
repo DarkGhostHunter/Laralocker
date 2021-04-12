@@ -9,7 +9,8 @@ Avoid [race conditions](https://en.wikipedia.org/wiki/Race_condition) in your Jo
 
 ## Requisites
 
-* Laravel 6 or Laravel 7
+* PHP 7.4, 8.0 or later
+* Laravel 8.x
 
 ## Installation
 
@@ -49,18 +50,21 @@ This is useful when your Jobs needs sequential data: Serial keys, result of calc
 
 3) Then implement the `startFrom()` and `next($slot)` methods.
 
-This package uses the power of the new [Job Middleware](https://laravel-news.com/job-middleware-is-coming-to-laravel-6). Just add the `LockerJobMiddleware` to your Job middleware and you're done.
+This package uses the power of the new [Job Middleware](https://laravel-news.com/job-middleware-is-coming-to-laravel-6). Just add the `LockerJobMiddleware` to your Job middleware, and you're done.
 
 ```php
 /**
- * Middleware that this Job should pass through
+ * Get the middleware the job should pass through.
  *
- * @var array
+ * @return array
  */
-public $middleware = [
-    LockerJobMiddleware::class,
-];
+public function middleware()
+{
+    return [new LockerJobMiddleware()];
+}
 ```
+
+> Job Middleware only runs when the Job implements the `ShouldQueue` interface. If you need your job to run in the same process, use `dispatch_sync()` or [`MyJob::dispatchSync()`](https://laravel.com/docs/8.x/queues#synchronous-dispatching).
 
 ## Example
 
@@ -85,15 +89,14 @@ class CreateTicket implements ShouldQueue, Lockable
     use HandlesSlot;
 
     /**
-     * Middleware that this Job should pass through
+     * Get the middleware the job should pass through.
      *
-     * { This only works for Laravel 6.0 } 
-     *
-     * @var array
+     * @return array
      */
-    public $middleware = [
-        LockerJobMiddleware::class,
-    ];
+    public function middleware()
+    {
+        return [new LockerJobMiddleware()];
+    }
 
     /**
      * Return the starting slot for the Jobs
@@ -124,9 +127,6 @@ class CreateTicket implements ShouldQueue, Lockable
      */
     public function handle(TicketSold $event)
     {
-        // Acquire the lock for this job and create the slot
-        // $this->reserveSlot(); // Not needed for Laravel 6.0
-
         $ticket = Ticket::make([
             'serial_key' => $this->slot,
         ]);
@@ -142,30 +142,19 @@ class CreateTicket implements ShouldQueue, Lockable
         $event->user->notify(
             new TicketAvailableNotification($ticket)        
         );
-
-        // Release the Slot
-        // $this->releaseSlot(); // Not needed for Laravel 6.0
     }
 }
 ```
 
 Let's start checking what each method does.
 
-### Starting with `reserveSlot()` and ending with `releaseSlot()`
-
-The `reserveSlot()` method boots up the locking system to reserve the job slot. Ideally, this should be in the first line of code, but as long is present before any call to the `$this->slot` will be fine.
-
-The `releaseSlot()` method tells the locking system to release the job, like a "light clean up". This should be the last line of code.
-
-The `clearSlot()` only frees the reserved slot before you use `fail()` or `release()`. It allows for other jobs to re-use the slot immediately, avoiding "slot jumping".
-
 ### `startFrom()`
 
-When the Job asks where to start, this will be used to get the "last slot" used. 
+When the Job asks where to start, this will be used to get the "last slot" used.
 
-If it's the first, its fine to return `null`.
+If it's the first, it's fine to return `null`.
 
-Once this starting point is retrieved, the Locker will save it in the Cache. Subsequent calls to the starting point will be use the Cache instead of of executing this method in each Job. 
+Once this starting point is retrieved, the Locker will save it in the Cache. Subsequent calls to the starting point will be use the Cache instead of  executing this method in each Job.
 
 This is used only when the first Job hits the queue, or if the cache returns null (maybe because you flushed it).
 
@@ -181,7 +170,7 @@ If the next slot was already "reserved" by another Job, it will recursively call
 
 ### `cache()` (optional)
 
-This is entirely optional. If you want that particular Job to use another Cache store, you can return it here. Just remember to [have properly configured the Cache driver](https://laravel.com/docs/5.8/cache#driver-prerequisites) you want to use in your application beforehand.
+This is entirely optional. If you want that particular Job to use another Cache store, you can return it here. Just remember to [have properly configured the Cache driver](https://laravel.com/docs/cache#driver-prerequisites) you want to use in your application beforehand.
 
 If your cache is compatible with tagging, like `redis` and `memcached`, you can set your tag here transparently. This allows you to flush a tag if something goes wrong, or have more granular control on it.
 
@@ -210,9 +199,9 @@ class CreateTicket implements ShouldQueue, Lockable
 
 ### `$slotTtl` (optional)
 
-Also entirely optional. Slots are reserved in the Cache by 60 seconds as default. You can set a bigger _ttl_ if your Job takes its sweet time, like 10 minutes.
+Also, entirely optional. Slots are reserved in the Cache by 60 seconds as default. You can set a bigger _ttl_ if your Job takes its sweet time, like 10 minutes.
 
-Is always recommended to set a maximum to avoid slot creeping in your Cache store.
+Is always recommended setting a maximum to avoid slot creeping in your Cache store.
 
 ```php
 <?php 
@@ -252,7 +241,7 @@ class CreateTicket implements ShouldQueue, Lockable
      *
      * @var string
      */
-    public $prefix = 'ticket_locking';
+    public string $prefix = 'ticket_locking';
 
     // ...
 }
@@ -263,7 +252,7 @@ class CreateTicket implements ShouldQueue, Lockable
 Laralocker works hands-off, but if you need to change the default configuration, just publish the config file.
 
 ```bash
-php artisan vendor:publish --provider=DarkGhostHunter\Laralocker\LaralockerServiceProvider
+php artisan vendor:publish --provider=DarkGhostHunter\Laralocker\LaralockerServiceProvider --tag="config"
 ```
 
 You will get a `laralocker.php` file in your config directory with the following contents:

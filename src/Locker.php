@@ -11,38 +11,38 @@ class Locker
      *
      * @var \Illuminate\Contracts\Cache\Repository
      */
-    protected $store;
+    protected Repository $store;
 
     /**
      * Queued Lockable Job instance
      *
      * @var \DarkGhostHunter\Laralocker\Contracts\Lockable
      */
-    protected $instance;
+    protected Contracts\Lockable $instance;
 
     /**
      * Prefix to use in the Cache Repository
      *
      * @var string
      */
-    protected $prefix;
+    protected string $prefix;
 
     /**
      * Slot Reservation Time to Live
      *
      * @var int
      */
-    protected $ttl;
+    protected int $ttl;
 
     /**
      * Creates a new Concurrent instance
      *
-     * @param $instance
-     * @param \Illuminate\Contracts\Cache\Repository $store
-     * @param string $prefix
-     * @param int $ttl
+     * @param  \DarkGhostHunter\Laralocker\Contracts\Lockable  $instance
+     * @param  \Illuminate\Contracts\Cache\Repository  $store
+     * @param  string  $prefix
+     * @param  int  $ttl
      */
-    public function __construct($instance, Repository $store, string $prefix, int $ttl)
+    public function __construct(Contracts\Lockable $instance, Repository $store, string $prefix, int $ttl)
     {
         $this->instance = $instance;
         $this->store = $store;
@@ -55,7 +55,7 @@ class Locker
      *
      * @return void
      */
-    public function handleSlotRelease()
+    public function handleSlotRelease(): void
     {
         $this->updateInitialSlot();
         $this->releaseSlot();
@@ -66,7 +66,7 @@ class Locker
      *
      * @return void
      */
-    protected function updateInitialSlot()
+    protected function updateInitialSlot(): void
     {
         // To avoid updating the last saved slot with an old slot, we will check if this last slot
         // was saved before the moment we reserved the next in the locker. Otherwise, we will not
@@ -80,9 +80,9 @@ class Locker
     /**
      * Return when was saved the last slot
      *
-     * @return int
+     * @return float
      */
-    protected function lastSlotTime()
+    protected function lastSlotTime(): float
     {
         return $this->store->get($this->prefix . ':microtime', 0);
     }
@@ -92,7 +92,7 @@ class Locker
      *
      * @return float
      */
-    protected function reservedSlotTime()
+    protected function reservedSlotTime(): float
     {
         // If we miss the cache, we will assume it expired while the Job was still processing.
         // In that case, returning zero will allow to NOT update the last saved slot because
@@ -103,10 +103,10 @@ class Locker
     /**
      * Returns the slot key
      *
-     * @param $slot
+     * @param \Illuminate\Support\Stringable|\Stringable|string|int $slot
      * @return string
      */
-    protected function key($slot)
+    protected function key($slot): string
     {
         return $this->prefix . '|' . $slot;
     }
@@ -116,7 +116,7 @@ class Locker
      *
      * @return bool
      */
-    public function releaseSlot()
+    public function releaseSlot(): bool
     {
         return $this->store->forget(
             $this->key($this->instance->getSlot())
@@ -126,9 +126,9 @@ class Locker
     /**
      * Returns the next available slot to use by the Job
      *
-     * @return mixed
+     * @return void
      */
-    public function reserveNextAvailableSlot()
+    public function reserveNextAvailableSlot(): void
     {
         $slot = $this->initialSlot();
 
@@ -136,7 +136,7 @@ class Locker
             $slot = $this->instance->next($slot);
         } while ($this->isReserved($slot));
 
-        return $this->instance->setSlot($this->reserveSlot($slot));
+        $this->instance->setSlot($this->reserveSlot($slot));
     }
 
     /**
@@ -157,10 +157,10 @@ class Locker
     /**
      * Return if the slot has been reserved by other Job
      *
-     * @param $slot
+     * @param \Illuminate\Support\Stringable|\Stringable|string|int $slot
      * @return bool
      */
-    protected function isReserved($slot)
+    protected function isReserved($slot): bool
     {
         return $this->store->has($this->key($slot));
     }
@@ -168,8 +168,8 @@ class Locker
     /**
      * Reserves the Slot into the Repository
      *
-     * @param $slot
-     * @return mixed
+     * @param \Illuminate\Support\Stringable|\Stringable|string|int $slot
+     * @return \Illuminate\Support\Stringable|\Stringable|string|int
      */
     protected function reserveSlot($slot)
     {

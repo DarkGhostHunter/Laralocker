@@ -5,14 +5,14 @@ namespace DarkGhostHunter\Laralocker;
 trait HandlesSlot
 {
     /**
-     * Slot being used by the Job
+     * Slot being used by the Job.
      *
      * @var mixed
      */
     protected $slot;
 
     /**
-     * Returns the Slot being used by the Job
+     * Returns the Slot being used by the Job.
      *
      * @return mixed
      */
@@ -22,18 +22,18 @@ trait HandlesSlot
     }
 
     /**
-     * Saves the Slot to use by the Job
+     * Saves the Slot to use by the Job.
      *
      * @param $slot
      * @return void
      */
-    public function setSlot($slot)
+    public function setSlot($slot): void
     {
         $this->slot = $slot;
     }
 
     /**
-     * Reserves the current Job slot
+     * Reserves the current Job slot.
      *
      * @return mixed
      */
@@ -45,21 +45,21 @@ trait HandlesSlot
     }
 
     /**
-     * Releases the current Job slot and updates the last slot
+     * Releases the current Job slot and updates the last slot.
      *
      * @return void
      */
-    public function releaseSlot()
+    public function releaseSlot(): void
     {
         app(LockerManager::class)->releaseSlot($this);
     }
 
     /**
-     * Clears the current Job slot reserved
+     * Clears the current Job slot reserved.
      *
      * @return void
      */
-    public function clearSlot()
+    public function clearSlot(): void
     {
         app(LockerManager::class)->clearSlot($this);
     }

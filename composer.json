@@ -16,14 +16,14 @@
         }
     ],
     "require": {
-        "php": "^7.2",
-        "illuminate/support": "^6.0||^7.0",
-        "illuminate/events": "^6.0||^7.0",
-        "illuminate/cache": "^6.0||^7.0",
-        "illuminate/bus": "^6.0||^7.0"
+        "php": ">=7.4",
+        "illuminate/support": "^6.0||^7.0||^8.0",
+        "illuminate/events": "^6.0||^7.0||^8.0",
+        "illuminate/cache": "^6.0||^7.0||^8.0",
+        "illuminate/bus": "^6.0||^7.0||^8.0"
     },
     "require-dev": {
-        "orchestra/testbench": "^4.1||^5.0"
+        "orchestra/testbench": "^4.2||^5.18||^6.17"
     },
     "autoload": {
         "psr-4": {
