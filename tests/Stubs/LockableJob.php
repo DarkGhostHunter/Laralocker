@@ -3,13 +3,13 @@
 namespace DarkGhostHunter\Laralocker\Tests\Stubs;
 
 use DarkGhostHunter\Laralocker\Contracts\Lockable;
-use DarkGhostHunter\Laralocker\HandlesSlot;
+use DarkGhostHunter\Laralocker\HandlesLockerSlot;
 use DarkGhostHunter\Laralocker\LockerJobMiddleware;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
 class LockableJob implements ShouldQueue, Lockable
 {
-    use HandlesSlot;
+    use HandlesLockerSlot;
 
     public static $current_slot = 0;
 

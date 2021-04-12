@@ -3,7 +3,7 @@
 namespace DarkGhostHunter\Laralocker\Tests\Stubs;
 
 use DarkGhostHunter\Laralocker\Contracts\Lockable;
-use DarkGhostHunter\Laralocker\HandlesSlot;
+use DarkGhostHunter\Laralocker\HandlesLockerSlot;
 use DarkGhostHunter\Laralocker\LockerJobMiddleware;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,7 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 class LockableExceptionJob implements ShouldQueue, Lockable
 {
     use InteractsWithQueue;
-    use HandlesSlot;
+    use HandlesLockerSlot;
 
     /**
      * Get the middleware the job should pass through.

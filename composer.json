@@ -17,13 +17,13 @@
     ],
     "require": {
         "php": ">=7.4",
-        "illuminate/support": "^6.0||^7.0||^8.0",
-        "illuminate/events": "^6.0||^7.0||^8.0",
-        "illuminate/cache": "^6.0||^7.0||^8.0",
-        "illuminate/bus": "^6.0||^7.0||^8.0"
+        "illuminate/support": "^7.0||^8.0",
+        "illuminate/events": "^7.0||^8.0",
+        "illuminate/cache": "^7.0||^8.0",
+        "illuminate/bus": "^7.0||^8.0"
     },
     "require-dev": {
-        "orchestra/testbench": "^4.2||^5.18||^6.17",
+        "orchestra/testbench": "^5.18||^6.17",
         "mockery/mockery": "^1.4"
     },
     "autoload": {

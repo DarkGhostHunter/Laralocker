@@ -10,7 +10,7 @@ Avoid [race conditions](https://en.wikipedia.org/wiki/Race_condition) in your Jo
 ## Requisites
 
 * PHP 7.4, 8.0 or later
-* Laravel 8.x
+* Laravel 7.x, 8.x or later
 
 ## Installation
 
@@ -20,17 +20,17 @@ Fire up composer:
 composer require darkghosthunter/laralocker
 ```
 
-## What can this be used for?
+## When you should use Laralocker?
 
 Anything that has **[race conditions](https://en.wikipedia.org/wiki/Race_condition)**.
 
 For example, let's say we need to create a sequential serial key for a sold Ticket, like `AAAA-BBBB-CCCC`. This is done by a Job pushed to the queue. This introduces three problems:
  
-* If two or more jobs started at the same time, these would check the last sold also at the same time, and **save the next Ticket with the same serial key**. 
-* If we use [Pessimistic Locking](https://laravel.com/docs/5.8/queries#pessimistic-locking) in our queue, we can be victims of [deadlocks](https://en.wikipedia.org/wiki/Deadlock).
-* If we have one Queue Worker, it will only process one Ticket at a time. When a flood of users buy 1000 tickets in one minute, a single Queue Worker will take its sweet time to process all. The Concert starts in five minutes, hope your CPU is a top of the line AMD EPYC!
+* If two or more jobs started at the same time, these would check the last sold also at the same time, and **save the next Ticket with the same serial key**.
+* If we use [Pessimistic Locking](https://laravel.com/docs/8.x/queries#pessimistic-locking) in our queue, we can be victims of [deadlocks](https://en.wikipedia.org/wiki/Deadlock) (a locked row cannot be modified _forever_).
+* If we have one Queue Worker, it will only process one Ticket at a time. When a flood of users buy 1,000 tickets in one minute, a single Queue Worker will take its sweet time to process all. The Concert starts in five minutes, hope your CPU is a top of the line AMD EPYC!
 
-Using this package, all Tickets can be dispatched concurrently without fear of collisions, just by reserving a _slot_ for processing.
+Using this package, all Tickets can be dispatched concurrently without fear of collisions, just by reserving a _slot_ (like and ID) for processing.
 
 ## How it works
 
@@ -38,33 +38,18 @@ This package allows your Job, Listener or Notification to be `Lockable`. With ju
 
 > For sake of simplicity, I will treat Notifications and Listeners as a Jobs, since all of these can be pushed to the Queue.
 
-Once the Job finishes processing, it will release the "slot", and mark that slot as the starting point for the next Jobs so they don't look ahead from the very beginning.
+Once the Job finishes processing, it will release the "slot", and mark that slot as the starting point for the next Jobs, so they don't look ahead from the very beginning.
 
 This is useful when your Jobs needs sequential data: Serial keys, result of calculations, timestamps, you name it.
 
 ## Usage
 
-1) Add the `Lockable` interface to your Job, Notification or Listener.
+1. Add the `Lockable` interface to your Job, Notification or Listener.
+2. Add the `HandlesLock` trait.
+3. Add the `LockerJobMiddleware` middleware.
+4. Implement the `startFrom()` and `next()`.
 
-2) Add the `HandlesLock` trait.
-
-3) Then implement the `startFrom()` and `next($slot)` methods.
-
-This package uses the power of the new [Job Middleware](https://laravel-news.com/job-middleware-is-coming-to-laravel-6). Just add the `LockerJobMiddleware` to your Job middleware, and you're done.
-
-```php
-/**
- * Get the middleware the job should pass through.
- *
- * @return array
- */
-public function middleware()
-{
-    return [new LockerJobMiddleware()];
-}
-```
-
-> Job Middleware only runs when the Job implements the `ShouldQueue` interface. If you need your job to run in the same process, use `dispatch_sync()` or [`MyJob::dispatchSync()`](https://laravel.com/docs/8.x/queues#synchronous-dispatching).
+> Job Middleware only runs when the Job implements the `ShouldQueue` interface. If you need your job to run in the same process without bypassing the middleware, use `dispatch_sync()` or [`MyJob::dispatchSync()`](https://laravel.com/docs/8.x/queues#synchronous-dispatching).
 
 ## Example
 
@@ -80,13 +65,13 @@ use App\Events\TicketSold;
 use App\Notifications\TicketAvailableNotification;
 use DarkGhostHunter\Laralocker\Contracts\Lockable;
 use DarkGhostHunter\Laralocker\LockerJobMiddleware;
-use DarkGhostHunter\Laralocker\HandlesSlot;
+use DarkGhostHunter\Laralocker\HandlesLockerSlot;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use SerialGenerator\SerialGenerator;
 
 class CreateTicket implements ShouldQueue, Lockable
 {
-    use HandlesSlot;
+    use HandlesLockerSlot;
 
     /**
      * Get the middleware the job should pass through.
@@ -99,23 +84,25 @@ class CreateTicket implements ShouldQueue, Lockable
     }
 
     /**
-     * Return the starting slot for the Jobs
+     * Return the starting slot for the Jobs.
      *
      * @return mixed
      */
     public function startFrom()
     {
+        // Get the latest stored ticket serial key.
         return Ticket::latest()->value('serial_key');
     }
 
     /**
-     * The next slot to check for availability
+     * The next slot to check for availability.
      *
      * @param mixed $slot
      * @return mixed
      */
     public function next($slot)
     {
+        // Ask our hypothetical generator to create a new serial from that.
         return SerialGenerator::baseSerial($slot)->getNextSerial();
     }
 
@@ -127,6 +114,7 @@ class CreateTicket implements ShouldQueue, Lockable
      */
     public function handle(TicketSold $event)
     {
+        // Create a new Ticket instance with this locked slot value.  
         $ticket = Ticket::make([
             'serial_key' => $this->slot,
         ]);
@@ -150,11 +138,9 @@ Let's start checking what each method does.
 
 ### `startFrom()`
 
-When the Job asks where to start, this will be used to get the "last slot" used.
+When the Job asks where to start, this will be used to get the "last slot" used. If it's the first, it's fine to return `null`.
 
-If it's the first, it's fine to return `null`.
-
-Once this starting point is retrieved, the Locker will save it in the Cache. Subsequent calls to the starting point will be use the Cache instead of  executing this method in each Job.
+Once this starting point is retrieved, the Locker will save it in the Cache. Subsequent calls to the starting point will be use the Cache instead of executing this method in each Job.
 
 This is used only when the first Job hits the queue, or if the cache returns null (maybe because you flushed it).
 
@@ -162,11 +148,11 @@ This is used only when the first Job hits the queue, or if the cache returns nul
 
 ### `next($slot)`
 
-After retrieving the starting slot, the Queue Worker will put it into this method to get the next slot that should be free to reserve. It may receive anything you set, even `null`.
+After retrieving the starting slot, the Queue Worker will put it into this method to get the next slot that should be free to reserve by the next job. It may receive anything you set, even `null`.
 
 If the next slot was already "reserved" by another Job, it will recursively call `next($slot)` until it finds one that is not.
 
-> For example, if your initial slot is `null`, the method will receive `null`, add ten and then return `10`. The Locker will check if `10` is reserved, and if its not free, then it call `next($slot)` again but using `10`, and so on, until it finds one that is not reserved, like `60`.
+> For example, if your initial slot is `null`, the method will receive `null`, add ten and then return `10`. The Locker will check if `10` is reserved, and if it's not free, then it calls `next($slot)` again but using `10`, and so on, until it finds one that is not reserved, like `60`.
 
 ### `cache()` (optional)
 
@@ -175,25 +161,14 @@ This is entirely optional. If you want that particular Job to use another Cache 
 If your cache is compatible with tagging, like `redis` and `memcached`, you can set your tag here transparently. This allows you to flush a tag if something goes wrong, or have more granular control on it.
 
 ```php
-<?php 
-
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use DarkGhostHunter\Laralocker\Contracts\Lockable;
-
-class CreateTicket implements ShouldQueue, Lockable
+/**
+ * Use a non-default Cache repository for handling slots (optional)
+ *
+ * @return \Illuminate\Contracts\Cache\Repository
+ */
+public function cache()
 {
-    // ...
-
-    /**
-     * Use a non-default Cache repository for handling slots (optional)
-     *
-     * @return \Illuminate\Contracts\Cache\Repository
-     */
-    public function cache()
-    {
-        return Cache::store('redis')->tag('tickets_queue');
-    }
+    return Cache::store('redis')->tag('tickets_queue');
 }
 ```
 
@@ -204,22 +179,12 @@ Also, entirely optional. Slots are reserved in the Cache by 60 seconds as defaul
 Is always recommended setting a maximum to avoid slot creeping in your Cache store.
 
 ```php
-<?php 
-
-use Illuminate\Contracts\Queue\ShouldQueue;
-use DarkGhostHunter\Laralocker\Contracts\Lockable;
-
-class CreateTicket implements ShouldQueue, Lockable
-{
-    /**
-     * Maximum Slot reservation time
-     *
-     * @var \Illuminate\Support\Carbon|int
-     */
-    public $slotTtl = 180;
-
-    // ...
-}
+/**
+ * Maximum Slot reservation time
+ *
+ * @var \Illuminate\Support\Carbon|int
+ */
+public $slotTtl = 180;
 ```
 
 > If you don't use `$slotTtl`, the Locker will automatically get it from the `$timeout`, `retryUntil()`, or the default from the config file, in that order.
@@ -229,22 +194,12 @@ class CreateTicket implements ShouldQueue, Lockable
 Also optional, this manages the prefix that it will be used for the slot reservations for the Job, avoiding clashing with other Cache keys.
 
 ```php
-<?php 
-
-use Illuminate\Contracts\Queue\ShouldQueue;
-use DarkGhostHunter\Laralocker\Contracts\Lockable;
-
-class CreateTicket implements ShouldQueue, Lockable
-{
-    /**
-     * Prefix for slots reservations
-     *
-     * @var string
-     */
-    public string $prefix = 'ticket_locking';
-
-    // ...
-}
+/**
+ * Prefix for slots reservations
+ *
+ * @var string
+ */
+public string $prefix = 'ticket_locking';
 ```
 
 ## Configuration
@@ -270,48 +225,42 @@ The contents are pretty much self-explanatory, but let's describe them one by on
 
 ### Cache
 
-Laralocker uses the default Cache of your application when this is set to `null`. On fresh Laravel installations, it's the `file` store.
- 
-If you need high performance, you may want to switch to `redis`, `sqs`, `memecached` or whatever you have available for your application. This must be one of your `stores` described in your `config/cache.php` file. 
-
 ```php
-<?php 
 return [
     'cache' => 'redis',
 ];
 ```
 
+Laralocker uses the default Cache of your application when this is set to `null`. On fresh Laravel installations, it's the `file` store.
+ 
+If you need high performance, you may want to switch to `redis`, `sqs`, `memecached` or whatever you have available for your application. This must be one of your `stores` described in your `config/cache.php` file. 
+
 ### Prefix
-
-To avoid collision with other Cache keys, Laralock will prefix the slots with a string. If for any reason you're using this prefix in your application, you may want to change it.
-
 ```php
-<?php 
 return [
     'prefix' => 'app_slots_queue',
 ];
 ```
 
+To avoid collision with other Cache keys, Laralock will prefix the slots with a string. If for any reason you're using this prefix in your application, you may want to change it.
+
 ### Slot Reservation Time-to-Live
 
-Slots reserved in the cache always have a maximum time to live, which after that are automatically freed. This is a mechanism to avoid creeping the Cache with zombie reservations.
-
-Of course some Jobs may take its while to process. You may want to extend this to a safe value if your Jobs may take much time.
-
 ```php
-<?php 
 return [
     'ttl' => 300,
 ];
 ```
 
+Slots reserved in the cache always have a maximum time to live, which after that are automatically freed. This is a mechanism to avoid creeping the Cache with zombie reservations.
+
+Of course some Jobs may take its while to process. You may want to extend this to a safe value if your Jobs may take much time.
+
 ## Releasing and Clearing slots
 
-When a Job fails, the `releaseSlot()` shouldn't be reached. This will allow to NOT update the last slot if the job fails, and will leave the slot reserved until it expires. 
+When a Job fails, the `releaseSlot()` isn't called. This will allow to NOT update the last slot if the job fails, and will leave the slot reserved until it expires. 
 
-If you release a Job back into the queue, or fail it manually, be sure to call `clearSlot()`. This will delete the slot reservation so other Jobs can reserve it.
-
-> If you're using Laravel 6.0, the slot clearing is done automatically if your Job fails when throwing an Exception. If you fail manually your Job, you still need to use `clearSlot()`.
+If you release a Job doesn't use the `Queueable` trait, be sure to call `clearSlot()` when your job fails. This will delete the slot reservation so other Jobs can reserve it.
 
 ## Detailed inner workings
 
@@ -331,7 +280,7 @@ Once the Job calls `releaseSlot()`, the Locker will save the `$slot` as the last
 
 If the Job fails, no "last slot" will be updated, and the slot will stay reserved until it expires.
 
-If the slot was already saved as the last, it will compare the timestamp from when the Job was started, and update it only if its more recent. This allow to NOT save a slot that is "older", allowing the slots to keep going forward.
+If the slot was already saved as the last, it will compare the timestamp from when the Job was started, and update it only if its more recent. This allows to NOT save a slot that is "older", allowing the slots to keep going forward.
 
 Finally, it will "release" the current reserved slot from the reservation pool in the Cache, avoiding zombie keys into the cache.
 

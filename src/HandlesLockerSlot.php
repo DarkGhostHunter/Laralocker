@@ -2,7 +2,7 @@
 
 namespace DarkGhostHunter\Laralocker;
 
-trait HandlesSlot
+trait HandlesLockerSlot
 {
     /**
      * Slot being used by the Job.
