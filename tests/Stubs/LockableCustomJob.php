@@ -5,13 +5,7 @@ namespace DarkGhostHunter\Laralocker\Tests\Stubs;
 use DarkGhostHunter\Laralocker\Contracts\Lockable;
 use DarkGhostHunter\Laralocker\HandlesSlot;
 use DarkGhostHunter\Laralocker\LockerJobMiddleware;
-use Illuminate\Bus\Queueable;
-use Illuminate\Cache\Repository;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Mockery;
 
 class LockableCustomJob implements Lockable, ShouldQueue
 {
