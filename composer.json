@@ -8,6 +8,7 @@
     "homepage": "https://github.com/darkghosthunter/laralocker",
     "license": "MIT",
     "type": "library",
+    "abandoned": true,
     "authors": [
         {
             "name": "DarkGhostHunter",
