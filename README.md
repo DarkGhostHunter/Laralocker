@@ -1,3 +1,9 @@
+The problematic of this package is resolved using [Unique Jobs](https://laravel.com/docs/queues#unique-jobs).
+
+This package is no longer maintained.
+
+---
+
 # Laralocker
 
 ![John Doyle - Unsplash (UL) #dAW17ADBZEM](https://images.unsplash.com/photo-1543853801-8e627b5e6ebf?ixlib=rb-1.2.1&auto=format&fit=crop&w=1280&h=400&q=80)
